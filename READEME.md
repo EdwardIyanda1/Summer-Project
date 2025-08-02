@@ -20,8 +20,7 @@ The purpose of this project is to help **students, staff, and visitors** navigat
 
 ## 💡 Features:
 
-✅ Interactive map of the university  
-✅ Clickable buildings with popups  
+✅ Interactive map of the university   
 ✅ Department information for each faculty  
 ✅ Descriptions of key buildings and landmarks  
 ✅ List of available campus services and their locations  
