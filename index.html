@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Map & Directory</title>
+  <meta property="og:title" content="Campus Map & Directory" />
+  <meta property="og:description" content="Explore our interactive campus map with buildings, departments, and services." />
+  <meta property="og:image" content="https://leadcity.vercel.app/images/logo.jpeg" />
+  <meta property="og:url" content="https://leadcity.vercel.app/" />
+  <meta property="og:type" content="website" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Campus Map & Directory" />
+  <meta name="twitter:description" content="Explore our interactive campus map with buildings, departments, and services." />
+  <meta name="twitter:image" content="https://leadcity.vercel.app/images/logo.jpeg" />
+  <link rel="icon" type="image/png" href="./images/logo.jpeg" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: all 0.3s ease;
+    }
+
+    body.high-contrast {
+      --bg: #000000;
+      --card: #ffffff;
+      --text: #000000;
+      --muted: #333333;
+    }
+
+    body.high-contrast .sidebar,
+    body.high-contrast .details-sidebar {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    body.large-text {
+      font-size: 18px;
+    }
+
+    body.large-text .title {
+      font-size: 24px;
+    }
+
+    body.large-text .item .name {
+      font-size: 20px;
+    }
+
+    body.reduced-motion * {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    body.offline .offline-banner {
+      display: block;
+    }
+
+    .offline-banner {
+      display: none;
+      background: var(--warning);
+      color: #000;
+      text-align: center;
+      padding: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 350px 1fr 400px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      background: var(--card);
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .sidebar header {
+      padding: 16px;
+      border-bottom: 1px solid #1f2937;
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 10;
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search-container {
+      margin: 12px 0;
+      position: relative;
+    }
+
+    #search-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      background: #1f2937;
+      color: var(--text);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    #search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      margin-top: 4px;
+    }
+
+    .search-result-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #374151;
+    }
+
+    .search-result-item:hover {
+      background: #374151;
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .filter-section {
+      margin: 16px 0;
+    }
+
+    .filter-section h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .filter-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      background: #1f2937;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn.active,
+    .filter-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .accessibility-controls {
+      margin: 16px 0;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .accessibility-controls button {
+      display: block;
+      width: 100%;
+      margin: 4px 0;
+      padding: 8px 12px;
+      font-size: 12px;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      background: #1f2937;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .accessibility-controls button:hover {
+      background: #374151;
+    }
+
+    .emergency-section {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: var(--danger);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      z-index: 1000;
+    }
+
+    .emergency-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .emergency-contacts {
+      font-size: 12px;
+    }
+
+    .emergency-contacts div {
+      margin: 4px 0;
+    }
+
+    .emergency-contacts a {
+      color: #fca5a5;
+      text-decoration: none;
+    }
+
+    .list {
+      overflow: auto;
+      padding: 8px 8px 120px;
+    }
+
+    .item {
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+      margin: 10px 8px;
+      background: #111827;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .item:hover {
+      border-color: var(--accent);
+      background: #1e293b;
+      transform: translateX(4px);
+    }
+
+    .item .name {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .item .meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .favorite-star {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .favorite-star.favorited {
+      color: #fbbf24;
+    }
+
+    .map-area {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #map {
+      height: 100vh;
+      width: 100%;
+      border: none;
+      border-radius: 0;
+    }
+
+    .details-sidebar {
+      background: #1f2937;
+      border-left: 1px solid #374151;
+      padding: 16px;
+      overflow-y: auto;
+      color: #f1f5f9;
+    }
+
+    .details-sidebar img {
+      width: 100%;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    .details-sidebar h2 {
+      font-size: 18px;
+      margin: 0 0 8px;
+    }
+
+    .details-sidebar h4 {
+      margin-top: 14px;
+      border-bottom: 1px solid #374151;
+      padding-bottom: 6px;
+    }
+
+    .details-sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .details-sidebar li {
+      margin: 10px 0;
+      padding: 8px;
+      border-bottom: 1px solid #374151;
+      font-size: 14px;
+    }
+
+    .details-sidebar li strong {
+      font-size: 15px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      background: #1f2937;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .action-btn:hover {
+      background: #374151;
+    }
+
+    .favorite-btn {
+      background: var(--warning);
+      color: white;
+      border-color: var(--warning);
+    }
+
+    .favorite-btn.favorited {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .events-section {
+      margin-top: 16px;
+    }
+
+    .event-item {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+
+    .event-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .event-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: #0b1120;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      text-align: center;
+      color: #e5e7eb;
+      padding: 20px;
+    }
+
+    .overlay-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      max-width: 600px;
+    }
+
+    .logo {
+      width: 120px;
+      height: auto;
+      border-radius: 50%;
+    }
+
+    #start-btn {
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: bold;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #start-btn:hover {
+      background: #1d4ed8;
+    }
+
+    #datetime {
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .contributors {
+      margin-top: 20px;
+      font-size: 14px;
+      text-align: left;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .contributors h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .contributors ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .contributors li {
+      margin: 5px 0;
+      line-height: 1.4;
+    }
+
+    .spinner {
+      display: none;
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 6px solid var(--accent);
+      border-top: 6px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+      .sidebar {
+        height: auto;
+        max-height: 35vh;
+        border-right: none;
+        border-bottom: 1px solid #1f2937;
+        order: 1;
+      }
+      .map-area {
+        order: 2;
+      }
+      #map {
+        height: 50vh;
+      }
+      .details-sidebar {
+        order: 3;
+        height: auto;
+        max-height: 30vh;
+        border-left: none;
+        border-top: 1px solid #374151;
+      }
+      .emergency-section {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        margin: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-banner">
+    <marquee>You are currently offline. Some features may not be available.</marquee> 
+  </div>
+
+  <div id="overlay">
+    <div class="overlay-content">
+      <img src="./images/logo.jpeg" alt="School Logo" class="logo" />
+      <h1>Welcome to Lead City University</h1>
+      <button id="start-btn">Enter Campus Map</button>
+      <div id="datetime"></div>
+
+      <div class="contributors">
+        <h3>Created By:</h3>
+        <ul>
+          <li>UCHE AHAVA IFUNANYA — LCU/UG/24/33257 — Computer Science with Economics</li>
+          <li>OKWOCHE David Favour — LCU/UG/24/33385 — Cybersecurity</li>
+          <li>Emelifonwu Shalom Chukwufumnaya — LCU/UG/24/33083 — Computer Science</li>
+          <li>Daramola Oluwatunmise Blessing — LCU/UG/24/33328 — Software Engineering</li>
+          <li>Iyanda Edward M. — LCU/UG/24/30926 — Software Engineering</li>
+        </ul>
+      </div>
+    </div>
+    <div id="spinner" class="spinner"></div>
+  </div>
+
+  <audio id="bg-music" src="music/campus-theme.mp3" loop></audio>
+
+  <div class="app">
+    <aside class="sidebar">
+      <header>
+        <div class="title">Campus Map & Directory</div>
+        <div class="subtitle">Find departments, buildings, and services</div>
+        
+        <div class="search-container">
+          <input type="text" id="search-input" placeholder="Search departments, HODs, programs..." />
+          <div id="search-results" class="search-results"></div>
+        </div>
+
+        <div class="filter-section">
+          <h4>Filter by Type:</h4>
+          <div class="filter-buttons">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="Faculty">Faculties</button>
+            <button class="filter-btn" data-filter="College">Colleges</button>
+            <button class="filter-btn" data-filter="Service">Services</button>
+            <button class="filter-btn" data-filter="Recreation">Recreation</button>
+          </div>
+        </div>
+
+        <!-- Accessibility Controls -->
+        <!-- <div class="accessibility-controls">
+          <button onclick="toggleHighContrast()">🎨 High Contrast</button>
+          <button onclick="increaseFontSize()">🔍 Larger Text</button>
+          <button onclick="toggleReducedMotion()">⏸️ Reduce Motion</button>
+          <button onclick="showEvents()">📅 Events</button>
+        </div> -->
+      </header>
+      <div class="list" id="list"></div>
+    </aside>
+
+    <main class="map-area">
+      <div id="map"></div>
+    </main>
+
+    <aside class="details-sidebar" id="details">
+      <div class="placeholder">
+        <h2>Select a Faculty/College</h2>
+        <p>Click a marker or item in the list to see details here.</p>
+        
+        <!-- Events Section -->
+        <!-- <div class="events-section">
+          <h4>Upcoming Events</h4>
+          <div class="event-item">
+            <div class="event-title">Orientation Week</div>
+            <div class="event-meta">September 2, 2024 • Main Auditorium</div>
+          </div>
+          <div class="event-item">
+            <div class="event-title">Career Fair</div>
+            <div class="event-meta">September 15, 2024 • Sports Complex</div>
+          </div>
+          <div class="event-item">
+            <div class="event-title">Tech Innovation Summit</div>
+            <div class="event-meta">October 5, 2024 • Engineering Faculty</div>
+          </div>
+        </div> -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- Emergency Section
+  <div class="emergency-section">
+    <button class="emergency-btn" onclick="callEmergency()">🚨 Emergency</button>
+    <div class="emergency-contacts">
+      <div>Security: <a href="tel:+2348012345678">+234-801-234-5678</a></div>
+      <div>Medical: <a href="tel:+2348087654321">+234-808-765-4321</a></div>
+    </div>
+  </div> -->
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const places = [
+      { 
+        id:'sci', 
+        name:'Faculty of Natural and Applied Sciences', 
+        type:'Faculty', 
+        desc:'Overview of Natural and Applied Sciences.', 
+        img:'images/science.jpg', 
+        latlng:[7.401,3.895],
+        departments: [
+          { name:"Anatomy", hod:"Prof. Adenowo", phone:"08033539613" },
+          { name:"Biological Sciences", hod:"Dr (Mrs) Bukola Bamkefa", phone:"08035268612, 08052631925" },
+          { name:"Chemical Sciences", hod:"Dr (Mrs) Tosin Arojojoye", phone:"08055455321" },
+          { name:"Computational and Physical Sciences", hod:"Dr. Sakpere", phone:"08159582869" },
+          { name:"Medical Laboratory Science", hod:"Mrs Adesola Oniye", phone:"08057231325" },
+          { name:"Nursing Science", hod:"Dr. L. T. Dada", phone:"08056139806" },
+          { name:"Health Information Management", hod:"Dr. E. O. Omidoyin", phone:"08034411627" },
+          { name:"Public Health", hod:"Dr. T. O. Akinsolu", phone:"07033171050" },
+          { name:"Physiology", hod:"Dr. A. S. Oyadeyi", phone:"08035392623" },
+          { name:"Environmental Health Science", hod:"Mrs Mofadeke Ajayi", phone:"08066580105" },
+          { name:"Community Health", hod:"Mr. F. Balogun", phone:"08039121286" },
+          { name:"Radiography", hod:"Prof. Akintade Dare", phone:"08089706800" },
+          { name:"Physics", hod:"Dr. Babatunde Adebo", phone:"08035022462" },
+        ]
+      },
+      { 
+        id:'eng', 
+        name:'Faculty of Engineering and Technology', 
+        type:'Faculty', 
+        desc:'Overview of Engineering and Technology.', 
+        img:'images/engineering.jpg', 
+        latlng:[7.404,3.898],
+        departments: [
+          { name:"Electrical and Electronic Engineering", hod:"Dr. Babatunde S. Emmanuel", phone:"+2348055825719" },
+          { name:"Mechanical Engineering", hod:"Dr. Olumide A. Towoju", phone:"+2348055934207" },
+          { name:"Civil Engineering", hod:"Engr. Adebola Akolade", phone:"+2347060961769" }
+        ]
+      },
+      { 
+        id:'cis', 
+        name:'Faculty of Communication and Information Science', 
+        type:'Faculty', 
+        desc:'Overview of Communication and Information Science.', 
+        img:'images/communication.jpg', 
+        latlng:[7.402,3.896],
+        departments: [
+          { name:"Information Resources Management", hod:"", phone:"" },
+          { name:"Library and Information Science", hod:"", phone:"" },
+          { name:"Public Relations", hod:"", phone:"" },
+          { name:"Journalism", hod:"", phone:"" },
+          { name:"Advertising", hod:"", phone:"" },
+          { name:"Media Studies", hod:"", phone:"" },
+          { name:"Printing and Publishing", hod:"", phone:"" },
+          { name:"Office and Information Management", hod:"", phone:"" }
+        ]
+      },
+      { 
+        id:'sms', 
+        name:'Faculty of Social Management Sciences', 
+        type:'Faculty', 
+        desc:'Overview of Social Management Sciences.', 
+        img:'images/social_sciences.jpg', 
+        latlng:[7.403,3.897],
+        departments: [
+          { name:"Economics", hod:"Dr. Toluwalope. Toyin Ogunro", phone:"07034738678", email:"ogunro.toluwalope@lcu.edu.ng" },
+          { name:"Management and Accounting", hod:"Dr. Tina Akinbo", phone:"08034007854", email:"akinbotm@lcu.edu.ng" },
+          { name:"Politics and International Relations", hod:"Dr. Tunde Oseni", phone:"08161198400", email:"oseni.tunde@lcu.edu.ng" },
+          { name:"Psychology, Sociology, Criminology and Social Work", hod:"Dr. Olusegun Mayungbo", phone:"08136174435", email:"mayungbo.olusegun@lcu.edu.ng" }
+        ]
+      },
+      { 
+        id:'med', 
+        name:'College of Medicine & Health Sciences', 
+        type:'College', 
+        desc:'Overview of Medicine & Health Sciences.', 
+        img:'images/medicine.jpg', 
+        latlng:[7.405,3.899],
+        departments: [
+          { name:"Medicine and Surgery", hod:"", phone:"", programme:"MBBS" },
+          { name:"Dentistry", hod:"", phone:"", programme:"Bachelor of Dental Surgery (BDS)" },
+          { name:"Dental Therapy", hod:"", phone:"", programme:"BDT" },
+          { name:"Dental Technology", hod:"", phone:"", programme:"B.Sc" },
+          { name:"Nursing", hod:"", phone:"", programme:"B.NSc." },
+          { name:"Physiotherapy", hod:"", phone:"", programme:"Doctor of Physiotherapy (DPT)" },
+          { name:"Medical Laboratory Sciences", hod:"", phone:"", programme:"B.MLS" },
+          { name:"Radiography", hod:"", phone:"", programme:"B.RAD" },
+          { name:"Community Health Sciences", hod:"", phone:"", programme:"BCHS" },
+          { name:"Health Information Management", hod:"", phone:"", programme:"B.HIM" },
+          { name:"Human Anatomy", hod:"", phone:"", programme:"B.Sc" },
+          { name:"Human Nutrition & Dietetics", hod:"", phone:"", programme:"B.Sc" },
+          { name:"Physiology", hod:"", phone:"", programme:"B.Sc" },
+          { name:"Public Health", hod:"", phone:"", programme:"B.Sc" }
+        ]
+      },
+      { 
+        id:'pharm', 
+        name:'Faculty of Pharmacy', 
+        type:'Faculty', 
+        desc:'Overview of Pharmacy.', 
+        img:'images/pharmacy.jpg', 
+        latlng:[7.400,3.894],
+        departments: [
+          { name:"Pharmacy", hod:"", phone:"", programme:"Doctor of Pharmacy (Pharm.D.)" }
+        ]
+      },
+      { 
+        id:'edm', 
+        name:'Faculty of Environmental Design & Management', 
+        type:'Faculty', 
+        desc:'Overview of Environmental Design & Management.', 
+        img:'images/environmental.jpg', 
+        latlng:[7.399,3.893],
+        departments: [
+          { name:"Architecture", hod:"Dr. Funmi Adedire", phone:"08080997437", programmes:"BSc., MSc., PhD in Architecture" },
+          { name:"Estate Management", hod:"Dr. Igho Fayomi", phone:"08033541739", programmes:"BSc., MSc., PhD (Estate Management, Facility Management, Property Development, Real Estate Marketing and Auctioneering)" },
+          { name:"Urban and Regional Planning", hod:"Prof. Grace Oloukoi", phone:"08063685892", programmes:"BSc. Urban and Regional planning, MSc.; Mphil/Ph.D in Environmental Management, Mpil/Ph.D in Built Environment, MSc.; Mphil/Ph.D in Land Administration and Development, MSc.; Mphil/Ph.D in Environmental Governance and Sustainable Development" },
+          { name:"Building", hod:"Bldr. Adegbola Azeez (Coordinator)", phone:"08099405916", programmes:"BSc. Building" },
+          { name:"Surveying and Geoinformatics", hod:"Dr. Adesola Adediran", phone:"09099134912", programmes:"BSc. Surveying and Geoinformatics" },
+          { name:"Fine and Applied Arts & Design", hod:"", phone:"", programmes:"BSc. Fine and Applied Arts & Design" },
+          { name:"Geographic Information Science", hod:"", phone:"", programmes:"BSc. Geographic Information Science" }
+        ]
+      },
+      { 
+        id:'arts_edu', 
+        name:'Faculty of Arts & Education', 
+        type:'Faculty', 
+        desc:'Overview of Arts & Education.', 
+        img:'images/arts_education.jpg', 
+        latlng:[7.398,3.892],
+        departments: [
+          { name:"English", hod:"", phone:"", programmes:"B.A. English" },
+          { name:"English & Literary Studies", hod:"", phone:"", programmes:"B.A. English & Literary Studies" },
+          { name:"English & French", hod:"", phone:"", programmes:"B.A. English & French" },
+          { name:"French", hod:"", phone:"", programmes:"B.A. French" },
+          { name:"Fine Arts", hod:"", phone:"", programmes:"B.A. Fine Arts" },
+          { name:"History & Diplomacy", hod:"", phone:"", programmes:"B.A. History & Diplomacy" },
+          { name:"Performing Arts, Music & Film Studies", hod:"", phone:"", programmes:"B.A. Performing Arts, Music & Film Studies" },
+          { name:"Religious Studies", hod:"", phone:"", programmes:"B.A. Religious Studies" },
+          { name:"Yoruba (African Languages)", hod:"", phone:"", programmes:"B.A. Yoruba (African Languages)" },
+          { name:"Biology Education", hod:"", phone:"", programmes:"B.Sc(Ed). Biology" },
+          { name:"Chemistry Education", hod:"", phone:"", programmes:"B.Sc(Ed). Chemistry" },
+          { name:"Computer Science Education", hod:"", phone:"", programmes:"B.Sc(Ed). Computer Science" },
+          { name:"Mathematics Education", hod:"", phone:"", programmes:"B.Sc(Ed). Mathematics" },
+          { name:"Physics Education", hod:"", phone:"", programmes:"B.Sc(Ed). Physics" },
+          { name:"Education", hod:"", phone:"", programmes:"B.A(Ed). Education" },
+          { name:"Business Education", hod:"", phone:"", programmes:"B(Ed). Business Education" },
+          { name:"Early Childhood Education", hod:"", phone:"", programmes:"B(Ed). Early Childhood Education" },
+          { name:"Economics Education", hod:"", phone:"", programmes:"B(Ed). Economics" },
+          { name:"Educational Management", hod:"", phone:"", programmes:"B(Ed). Educational Mgt, B(Ed). Educational Mgt. with options in Economics, Accounting, and English Lang." },
+          { name:"Guidance & Counselling", hod:"", phone:"", programmes:"B(Ed). Guidance & Counselling" },
+          { name:"Kinesiology/Physical and Health Education", hod:"", phone:"", programmes:"B(Ed). Kinesiology/Physical and Health Education" },
+          { name:"Social Studies", hod:"", phone:"", programmes:"B(Ed). Social Studies" }
+        ]
+      },
+      {
+        id: 'library',
+        name: 'University Library',
+        type: 'Service',
+        desc: 'Central academic library with extensive resources and study facilities.',
+        img: 'images/library.jpg',
+        latlng: [7.402, 3.894],
+        hours: 'Mon-Fri: 8AM-10PM, Sat: 9AM-6PM',
+        services: ['Study Rooms', 'Computer Lab', 'Printing', 'Research Assistance', 'Digital Resources', 'Group Study Areas']
+      },
+      {
+        id: 'cafeteria',
+        name: 'Main Cafeteria',
+        type: 'Service',
+        desc: 'Primary dining facility serving various local and continental meals.',
+        img: 'images/cafeteria.jpg',
+        latlng: [7.403, 3.895],
+        hours: 'Mon-Fri: 7AM-8PM, Sat-Sun: 8AM-7PM',
+        services: ['Local dishes', 'Continental cuisine', 'Snacks', 'Beverages', 'Catering services']
+      },
+      {
+        id: 'clinic',
+        name: 'University Health Center',
+        type: 'Service',
+        desc: 'Comprehensive healthcare facility for students and staff.',
+        img: 'images/clinic.jpg',
+        latlng: [7.404, 3.896],
+        hours: '24/7 Emergency, Regular hours: 8AM-6PM',
+        services: ['Emergency Care', 'General Practice', 'Pharmacy', 'Dental Care', 'Mental Health Support', 'Health Education']
+      },
+      {
+        id: 'sports',
+        name: 'Sports Complex',
+        type: 'Recreation',
+        desc: 'Modern sports and recreation facility with various courts and fields.',
+        img: 'images/sports.jpg',
+        latlng: [7.405, 3.897],
+        hours: 'Mon-Fri: 6AM-10PM, Weekends: 7AM-9PM',
+        services: ['Football Field', 'Basketball Court', 'Tennis Court', 'Gym', 'Swimming Pool', 'Athletics Track']
+      },
+      {
+        id: 'admin',
+        name: 'Administrative Block',
+        type: 'Service',
+        desc: 'Central administration building housing key university offices.',
+        img: 'images/admin.jpg',
+        latlng: [7.401, 3.893],
+        hours: 'Mon-Fri: 8AM-5PM',
+        services: ['Registrar Office', 'Bursary', 'Student Affairs', 'Admissions Office', 'Vice-Chancellor Office', 'Human Resources']
+      },
+      {
+        id: 'hostels',
+        name: 'Student Hostels',
+        type: 'Service',
+        desc: 'On-campus residential accommodation for students.',
+        img: 'images/hostels.jpg',
+        latlng: [7.406, 3.900],
+        hours: '24/7 Access',
+        services: ['Accommodation', 'Laundry', 'Common Rooms', 'Study Areas', 'Security', 'Maintenance']
+      }
+    ];
+
+    const events = [
+      {
+        title: 'Orientation Week',
+        date: '2024-09-02',
+        location: 'Main Auditorium',
+        type: 'Academic',
+        description: 'Welcome program for new students'
+      },
+      {
+        title: 'Career Fair',
+        date: '2024-09-15',
+        location: 'Sports Complex',
+        type: 'Career',
+        description: 'Meet potential employers and explore career opportunities'
+      },
+      {
+        title: 'Tech Innovation Summit',
+        date: '2024-10-05',
+        location: 'Engineering Faculty',
+        type: 'Technology',
+        description: 'Showcase of latest innovations in technology'
+      },
+      {
+        title: 'Medical Conference',
+        date: '2024-10-20',
+        location: 'College of Medicine',
+        type: 'Academic',
+        description: 'International medical research conference'
+      },
+      {
+        title: 'Cultural Festival',
+        date: '2024-11-10',
+        location: 'Main Campus',
+        type: 'Cultural',
+        description: 'Celebration of diverse cultures and traditions'
+      }
+    ];
+
+    const overlay = document.getElementById("overlay");
+    const btn = document.getElementById("start-btn");
+    const music = document.getElementById("bg-music");
+    const datetime = document.getElementById("datetime");
+    const spinner = document.getElementById("spinner");
+    const content = document.querySelector(".overlay-content");
+
+    let favorites = [];
+    let currentFilter = 'all';
+    let highContrastMode = false;
+    let largeTextMode = false;
+    let reducedMotionMode = false;
+
+    function loadFavorites() {
+      favorites = [];
+    }
+
+    function saveFavorites() {
+      console.log('Favorites saved:', favorites);
+    }
+
+    function toggleFavorite(placeId) {
+      const index = favorites.indexOf(placeId);
+      if (index > -1) {
+        favorites.splice(index, 1);
+      } else {
+        favorites.push(placeId);
+      }
+      saveFavorites();
+      renderList();
+      
+      const currentPlace = places.find(p => p.id === placeId);
+      if (currentPlace && document.getElementById('details').innerHTML.includes(currentPlace.name)) {
+        showDetails(currentPlace);
+      }
+    }
+
+    function initializeSearch() {
+      const searchInput = document.getElementById('search-input');
+      const searchResults = document.getElementById('search-results');
+      
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        if (query.length < 2) {
+          searchResults.innerHTML = '';
+          searchResults.style.display = 'none';
+          return;
+        }
+        
+        const results = [];
+        places.forEach(place => {
+          if (place.name.toLowerCase().includes(query)) {
+            results.push({ type: 'faculty', item: place, parent: null });
+          }
+          
+          if (place.departments) {
+            place.departments.forEach(dept => {
+              if (dept.name.toLowerCase().includes(query) || 
+                  (dept.hod && dept.hod.toLowerCase().includes(query)) ||
+                  (dept.programmes && dept.programmes.toLowerCase().includes(query)) ||
+                  (dept.programme && dept.programme.toLowerCase().includes(query))) {
+                results.push({ type: 'department', item: dept, parent: place });
+              }
+            });
+          }
+          
+          if (place.services) {
+            place.services.forEach(service => {
+              if (service.toLowerCase().includes(query)) {
+                results.push({ type: 'service', item: place, parent: null });
+              }
+            });
+          }
+        });
+        
+        if (results.length > 0) {
+          searchResults.innerHTML = results.slice(0, 5).map(result => `
+            <div class="search-result-item" onclick="selectSearchResult('${result.parent?.id || result.item.id}')">
+              <strong>${result.item.name}</strong>
+              <div class="search-meta">
+                ${result.type === 'department' ? result.parent.name : result.item.type}
+                ${result.type === 'department' && result.item.hod ? ' • HOD: ' + result.item.hod : ''}
+              </div>
+            </div>
+          `).join('');
+          searchResults.style.display = 'block';
+        } else {
+          searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
+          searchResults.style.display = 'block';
+        }
+      });
+      
+      document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+          searchResults.style.display = 'none';
+        }
+      });
+    }
+
+    function selectSearchResult(placeId) {
+      const place = places.find(p => p.id === placeId);
+      if (place) {
+        showDetails(place);
+        map.setView(place.latlng, 18);
+        document.getElementById('search-results').style.display = 'none';
+        document.getElementById('search-input').value = '';
+      }
+    }
+
+    function initializeFilters() {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const filter = e.target.dataset.filter;
+          currentFilter = filter;
+          
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          
+          renderList();
+          showFilteredMarkers();
+        });
+      });
+    }
+
+    function getFilteredPlaces() {
+      if (currentFilter === 'all') {
+        return places;
+      }
+      return places.filter(p => p.type === currentFilter);
+    }
+
+    function showFilteredMarkers() {
+      const filteredPlaces = getFilteredPlaces();
+      
+      markers.forEach(marker => {
+        map.removeLayer(marker);
+      });
+      
+      filteredPlaces.forEach(place => {
+        if (markers.has(place.id)) {
+          map.addLayer(markers.get(place.id));
+        }
+      });
+    }
+
+    function toggleHighContrast() {
+      highContrastMode = !highContrastMode;
+      document.body.classList.toggle('high-contrast', highContrastMode);
+    }
+
+    function increaseFontSize() {
+      largeTextMode = !largeTextMode;
+      document.body.classList.toggle('large-text', largeTextMode);
+    }
+
+    function toggleReducedMotion() {
+      reducedMotionMode = !reducedMotionMode;
+      document.body.classList.toggle('reduced-motion', reducedMotionMode);
+    }
+
+    function callEmergency() {
+      if (confirm('This will call emergency services. Do you want to continue?')) {
+        
+        alert('Emergency services have been contacted. Help is on the way.');
+      }
+    }
+
+    function shareLocation(place) {
+      const shareText = `Check out ${place.name} at Lead City University!`;
+      const shareUrl = `${window.location.origin}?location=${place.id}`;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: place.name,
+          text: shareText,
+          url: shareUrl
+        });
+      } else {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(shareUrl);
+          alert('Link copied to clipboard!');
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = shareUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          alert('Link copied to clipboard!');
+        }
+      }
+    }
+
+    function showEvents() {
+      const eventsHTML = `
+        <h2>📅 Upcoming Events</h2>
+        <div class="events-section">
+          ${events.map(event => `
+            <div class="event-item">
+              <div class="event-title">${event.title}</div>
+              <div class="event-meta">${event.date} • ${event.location}</div>
+              ${event.description ? `<p style="margin-top: 8px; font-size: 12px; color: var(--muted);">${event.description}</p>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn" onclick="location.reload()">← Back to Map</button>
+        </div>
+      `;
+      
+      document.getElementById('details').innerHTML = eventsHTML;
+    }
+
+    btn.addEventListener("click", () => {
+      content.style.display = "none";
+      spinner.style.display = "block";
+      
+      music.volume = 0.3;
+      music.play().catch(e => {
+        console.log('Audio autoplay prevented:', e);
+      });
+      
+      setTimeout(() => { 
+        overlay.style.display = "none"; 
+        initializeApp();
+      }, 3000);
+    });
+
+    function updateDateTime() {
+      const now = new Date();
+      datetime.innerText = now.toLocaleString();
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
+    function initializeOfflineSupport() {
+      window.addEventListener('online', () => {
+        document.body.classList.remove('offline');
+      });
+      
+      window.addEventListener('offline', () => {
+        document.body.classList.add('offline');
+      });
+      
+      if (!navigator.onLine) {
+        document.body.classList.add('offline');
+      }
+    }
+
+    const CAMPUS_CENTER = [7.3265, 3.8765];
+    let map, markers;
+    const details = document.getElementById('details');
+
+    function initializeApp() {
+      map = L.map('map').setView(CAMPUS_CENTER, 16);
+      
+      const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      });
+      
+      const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: '© Esri'
+      });
+      
+      streetLayer.addTo(map);
+      
+      const baseMaps = {
+        "Street View": streetLayer,
+        "Satellite": satelliteLayer
+      };
+      
+      L.control.layers(baseMaps).addTo(map);
+      
+      markers = new Map();
+      initializeMarkers();
+      
+      loadFavorites();
+      initializeSearch();
+      initializeFilters();
+      initializeOfflineSupport();
+      renderList();
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const locationId = urlParams.get('location');
+      if (locationId) {
+        const place = places.find(p => p.id === locationId);
+        if (place) {
+          showDetails(place);
+          map.setView(place.latlng, 18);
+        }
+      }
+    }
+
+    function initializeMarkers() {
+      const customIcon = L.divIcon({
+        html: `<div style="
+          width: 36px; height: 36px;
+          background: url('./images/logo.jpeg') no-repeat center/cover;
+          border-radius: 50%; border: 2px solid #2563eb;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        "></div>`,
+        className: "",
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
+      });
+
+      places.forEach(place => {
+        const marker = L.marker(place.latlng, { icon: customIcon })
+          .addTo(map)
+          .bindPopup(`<strong>${place.name}</strong><br><em>${place.type}</em>`);
+        
+        marker.on('click', () => {
+          showDetails(place);
+        });
+        
+        markers.set(place.id, marker);
+      });
+    }
+
+    function showDetails(place) {
+      const isFavorite = favorites.includes(place.id);
+      
+      let servicesHTML = "";
+      if (place.services) {
+        servicesHTML = `
+          <h4>Services & Facilities</h4>
+          <ul>
+            ${place.services.map(service => `<li>${service}</li>`).join("")}
+          </ul>
+        `;
+      }
+      
+      let hoursHTML = "";
+      if (place.hours) {
+        hoursHTML = `
+          <h4>Operating Hours</h4>
+          <p>${place.hours}</p>
+        `;
+      }
+      
+      let deptHTML = "";
+      if (place.departments) {
+        deptHTML = `
+          <h4>Departments & Programmes</h4>
+          <ul>
+            ${place.departments.map(d => `
+              <li>
+                <strong>${d.name}</strong>
+                ${d.programme || d.programmes ? `<br><em>Programme:</em> ${d.programme || d.programmes}` : ""}
+                ${d.hod ? `<br><em>HoD:</em> ${d.hod}` : ""}
+                ${d.phone ? `<br><em>Tel:</em> ${d.phone}` : ""}
+                ${d.email ? `<br><em>Email:</em> <a href="mailto:${d.email}" style="color:#3b82f6;">${d.email}</a>` : ""}
+              </li>
+            `).join("")}
+          </ul>
+        `;
+      }
+      
+      details.innerHTML = `
+        <img src="${place.img}" alt="${place.name}" onerror="this.style.display='none'">
+        <h2>${place.name}</h2>
+        <em>${place.type}</em>
+        <p>${place.desc}</p>
+        
+        ${hoursHTML}
+        ${servicesHTML}
+        ${deptHTML}
+      `;
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('list');
+      const filteredPlaces = getFilteredPlaces();
+      
+      listEl.innerHTML = '';
+      filteredPlaces.forEach(place => {
+        const isFavorite = favorites.includes(place.id);
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `
+          <div class="name">${place.name}</div>
+          <div class="meta">${place.type}</div>
+          <span class="favorite-star ${isFavorite ? 'favorited' : ''}" onclick="event.stopPropagation(); toggleFavorite('${place.id}')">
+            ${isFavorite ? '⭐' : '☆'}
+          </span>
+        `;
+        div.onclick = () => {
+          showDetails(place);
+          map.setView(place.latlng, 18);
+        };
+        listEl.appendChild(div);
+      });
+    }
+
+    window.toggleFavorite = toggleFavorite;
+    window.shareLocation = shareLocation;
+    window.toggleHighContrast = toggleHighContrast;
+    window.increaseFontSize = increaseFontSize;
+    window.toggleReducedMotion = toggleReducedMotion;
+    window.showEvents = showEvents;
+    window.callEmergency = callEmergency;
+    window.selectSearchResult = selectSearchResult;
+    window.places = places;
+  </script>
+</body>
+</html>
